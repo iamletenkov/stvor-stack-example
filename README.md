@@ -45,6 +45,9 @@ scripts/release.sh          test, images, render, publish, all, local — одн
 .github/workflows/release.yml   GitHub Actions: по тегу v* и вручную
 .gitlab-ci.yml              self-hosted GitLab с Docker-раннером: только по тегу
 demo/1.1.0.patch, 1.2.0.patch   изменения для сценария показа
+scripts/demo-images.sh      образы трёх версий сценария показа в GHCR и таблица digest (см. «Образы примера в GHCR»)
+release/Dockerfile.bundle   пакет релиза одной версии образом FROM scratch
+.github/workflows/demo-images.yml   GitHub Actions: публикация образов примера, только вручную
 stvor-stack-publish.sh      скрипт публикации — копия из портала, обновлять по шагу 2
 ```
 
@@ -183,6 +186,55 @@ git push origin HEAD v1.2.0
    «Откатился», причина `health_timeout`. Счётчик учитывает оба запуска.
 4. Ручной откат на 1.0.0 с причиной — цвет и параметры 1.0.0.
 5. После показа: `git revert HEAD`, раздел `## 1.2.1` в `CHANGELOG.md`, тег `v1.2.1`. Сломанный 1.2.0 отзовите.
+
+## Образы примера в GHCR
+
+Проверкам, которым нужен настоящий стек (например, проверке доставки на робота в Stvor), пример отдаёт готовые
+образы трёх версий сценария показа в GitHub Container Registry. Это не выпуск стека в портал — тот идёт по тегу
+`v*` (`release.yml`).
+
+| Пакет | Что внутри |
+|---|---|
+| `ghcr.io/iamletenkov/stvor-stack-example/api` | образ сервиса api |
+| `ghcr.io/iamletenkov/stvor-stack-example/web` | образ сервиса web |
+| `ghcr.io/iamletenkov/stvor-stack-example/release` | пакет релиза: образ `FROM scratch` одним слоем — `compose.release.yaml`, `parameters.yaml`, `release.template.json`, `CHANGELOG.md` версии; маркеры `__ИМЯ__` не заполнены, их подставляет потребитель, как `scripts/release.sh render` |
+
+- Версии 1.0.0, 1.1.0 и 1.2.0 собираются из одного коммита: 1.0.0 — дерево коммита, 1.1.0 и 1.2.0 — с
+  `demo/1.1.0.patch` и затем `demo/1.2.0.patch` поверх (во временной копии, рабочее дерево не меняется). 1.2.0
+  ломается так же, как в сценарии показа: healthcheck web опрашивает порт 8081.
+- Платформы — linux/amd64 и linux/arm64 в одном индексе. Тег — `demo-<версия>-<12 знаков коммита>`, неизменяемый:
+  если хоть один из девяти тегов уже есть, запуск откажет до сборки. Берите образы только по digest.
+- Время файлов и образа — время коммита (`SOURCE_DATE_EPOCH`, `rewrite-timestamp`).
+
+Как обновить:
+
+1. Actions → **demo-images** → «Run workflow» на `main`. Запуск проверяет скрипт, гоняет тесты api и web, собирает
+   и отправляет девять образов. Токен — встроенный `GITHUB_TOKEN`, других секретов нет.
+2. Таблица digest (lock) — в сводке запуска и артефактом `demo-images-lock`. Локально её же даёт
+   `scripts/demo-images.sh lock` на том же коммите.
+3. Новый пакет GHCR закрыт: один раз сделайте каждый из трёх пакетов публичным (страница пакета → Package settings →
+   Change visibility → Public), иначе анонимный pull не пройдёт.
+4. Пин в Stvor — файл `scripts/stack-robot/example.lock` репозитория Stvor: замените его таблицей из запуска целиком.
+
+Формат lock — по строке на компонент версии, поля через табуляцию, без заголовка и комментариев:
+
+```text
+version  component  platform     digest                source_commit
+1.0.0    api        linux/amd64  sha256:<64 hex>       <полный sha коммита примера>
+```
+
+`component` — `api`, `web`, `release`; `digest` — манифест платформы из индекса тега; образ —
+`ghcr.io/iamletenkov/stvor-stack-example/<component>@<digest>`. Строки — для linux/amd64 (девять строк); arm64 есть в
+том же индексе, строки для него даёт `LOCK_PLATFORMS=linux/amd64,linux/arm64 scripts/demo-images.sh lock`.
+
+Pull request с правкой сборки (`demo-images.yml`, `scripts/demo-images.sh`, `scripts/release.sh`, `release/`, `demo/`,
+`api/`, `web/`) проходит те же шаги
+без входа в реестр и без отправки. У себя:
+
+```sh
+scripts/demo-images.sh --self-test                 # порядок патчей, формат lock, отказ при занятом теге
+PLATFORMS=linux/amd64 scripts/demo-images.sh build # тесты и сборка трёх версий без отправки
+```
 
 ## Выпуск без CI
 
