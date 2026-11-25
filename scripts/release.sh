@@ -180,6 +180,10 @@ cmd_render() {
   matches "$_offset" '^[0-9]{1,15}$' || die "STVOR_COUNTER_OFFSET: целое ≥ 0"
   _counter=$((_counter + _offset))
   _created=${CREATED_AT:-$(default_created_at)}
+  # Время pipeline GitLab (CI_PIPELINE_CREATED_AT) — ISO 8601; иной вид (смещение, доли секунды) приводим к UTC.
+  if ! matches "$_created" "$TIME_RE" && _norm=$(date -u -d "$_created" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null); then
+    _created=$_norm
+  fi
   matches "$_created" "$TIME_RE" || die "CREATED_AT: ожидается UTC вида 2026-11-22T10:00:00Z"
   _repo=${SOURCE_REPO:-}
   [ -n "$_repo" ] || die "задайте SOURCE_REPO — https-адрес репозитория (source.repo релиза)"
