@@ -1,0 +1,117 @@
+# Выпуск стека в Stvor по тегу v<версия> (или вручную — «Run workflow» на том же теге).
+# Задание images собирает и отправляет образы обеих архитектур, задание publish регистрирует релиз скриптом
+# stvor-stack-publish.sh из корня репозитория. Повтор только publish отправляет те же байты (ответ 200).
+#
+# Настройки репозитория (Settings → Secrets and variables → Actions или окружение stvor-release):
+#   vars.STVOR_URL        https://stvor.example.com — адрес портала
+#   vars.STVOR_STACK      слаг стека
+#   secrets.STVOR_STACK_KEY  ключ CI стека sck_… (скрипт читает его только из переменной окружения STVOR_STACK_KEY)
+#   vars.STVOR_COUNTER_OFFSET  необязательно: прибавка к номеру запуска в release_counter
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Релизы стека — по одному: счётчик версий растёт, варианты версии публикуются до следующей версии.
+concurrency:
+  group: stvor-stack-release
+  cancel-in-progress: false
+
+env:
+  STVOR_URL: ${{ vars.STVOR_URL }}
+  STVOR_STACK: ${{ vars.STVOR_STACK }}
+  PLATFORMS: linux/amd64,linux/arm64
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    environment: stvor-release
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Версия из тега
+        run: |
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            echo "::error::Запускайте на теге v<версия>: сейчас $GITHUB_REF_TYPE $GITHUB_REF_NAME"
+            exit 2
+          fi
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Скрипт публикации на месте
+        run: |
+          test -f stvor-stack-publish.sh || {
+            echo "::error::Нет stvor-stack-publish.sh: портал → стек → «Публикация» → «Скачать скрипт», закоммитьте в корень"
+            exit 2
+          }
+          sh ./stvor-stack-publish.sh --self-test
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Тесты
+        run: scripts/release.sh test
+
+      - name: Сборка и отправка образов
+        env:
+          STVOR_STACK_KEY: ${{ secrets.STVOR_STACK_KEY }}
+          SOURCE_REPO: ${{ github.server_url }}/${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: scripts/release.sh images
+
+      - name: Файлы релиза
+        env:
+          RELEASE_COUNTER: ${{ github.run_number }}
+          STVOR_COUNTER_OFFSET: ${{ vars.STVOR_COUNTER_OFFSET }}
+          SOURCE_REPO: ${{ github.server_url }}/${{ github.repository }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_PIPELINE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/release.sh render
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: |
+            dist/amd64/
+            dist/arm64/
+            dist/index-*.json
+          if-no-files-found: error
+
+  publish:
+    needs: images
+    runs-on: ubuntu-latest
+    environment: stvor-release
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: dist
+
+      - name: Публикация релиза
+        env:
+          STVOR_STACK_KEY: ${{ secrets.STVOR_STACK_KEY }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v} scripts/release.sh publish
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-published
+          path: dist/
+          overwrite: true
+          if-no-files-found: ignore
