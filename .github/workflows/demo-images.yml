@@ -1,0 +1,104 @@
+# Образы примера в GHCR — api, web и пакет релиза версий 1.0.0, 1.1.0, 1.2.0 (linux/amd64 и linux/arm64) для
+# проверок, которым нужен настоящий стек. Публикует только ручной запуск («Run workflow»): теги
+# demo-<версия>-<sha12> неизменяемы, существующий тег не перезаписывается, потребители берут образ по digest.
+# Таблица digest (lock) — в сводке запуска и артефактом demo-images-lock. Подробности — README, «Образы примера в GHCR».
+#
+# Pull request с правкой сборки проходит те же шаги без входа в реестр и без отправки.
+# Токен — только встроенный GITHUB_TOKEN; запись пакетов есть только у задания publish.
+name: demo-images
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/demo-images.yml
+      - scripts/demo-images.sh
+      - scripts/release.sh
+      - release/**
+      - demo/**
+      - api/**
+      - web/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-images-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PLATFORMS: linux/amd64,linux/arm64
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Самопроверка скрипта
+        run: sh scripts/demo-images.sh --self-test
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Тесты и сборка трёх версий без отправки
+        run: sh scripts/demo-images.sh build
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+      SOURCE_REPO: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Самопроверка скрипта
+        run: sh scripts/demo-images.sh --self-test
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Вход в GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Тесты, сборка и отправка трёх версий
+        run: sh scripts/demo-images.sh build --push
+
+      - name: Таблица lock
+        run: |
+          mkdir -p dist
+          sh scripts/demo-images.sh lock >dist/demo-images.lock
+          test "$(wc -l <dist/demo-images.lock)" -eq 9
+          {
+            echo "### Образы примера: таблица lock"
+            echo
+            echo "version, component, platform, digest, source_commit — через табуляцию; образ:"
+            echo "\`$IMAGE_PREFIX/<component>@<digest>\`."
+            echo
+            echo '```text'
+            cat dist/demo-images.lock
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: demo-images-lock
+          path: dist/demo-images.lock
+          if-no-files-found: error
+
+      - name: Выход из GHCR
+        if: always()
+        run: docker logout ghcr.io

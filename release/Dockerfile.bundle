@@ -1,0 +1,7 @@
+# Пакет релиза стека-примера: файлы релиза одной версии одним слоем, без программ и без запуска.
+# Собирает scripts/demo-images.sh из корня дерева версии (контекст — корень, после патчей demo/). Потребитель
+# берёт образ по digest, распаковывает слой и подставляет маркеры __ИМЯ__ сам — как scripts/release.sh render.
+FROM scratch
+ARG DEMO_VERSION=0.0.0-dev
+LABEL org.opencontainers.image.version=$DEMO_VERSION
+COPY release/compose.release.yaml release/parameters.yaml release/release.template.json CHANGELOG.md /
