@@ -8,6 +8,8 @@
 #                    Protected tags), иначе задание по тегу не получит protected-переменную
 #   STVOR_COUNTER_OFFSET  необязательно: прибавка к CI_PIPELINE_IID в release_counter
 # Своему CA портала должны доверять dind (вход и push) и curl скрипта: CURL_CA_BUNDLE — путь к файлу CA.
+# Раннер должен доходить по HTTPS до STVOR_URL и registry.<хост портала>.
+# created_at релиза — CI_PIPELINE_CREATED_AT (ISO 8601, scripts/release.sh приводит его к UTC без долей секунды).
 
 stages: [build, publish]
 
@@ -34,7 +36,7 @@ build-stack-images:
   before_script:
     - apk add --no-cache jq
     - 'test -n "$STVOR_STACK_KEY" || { echo "Нет masked-переменной STVOR_STACK_KEY (protected — только на защищённом теге)" >&2; exit 2; }'
-    - 'test -f stvor-stack-publish.sh || { echo "Нет stvor-stack-publish.sh: портал → стек → «Публикация» → «Скачать скрипт», закоммитьте в корень" >&2; exit 2; }'
+    - 'test -f stvor-stack-publish.sh || { echo "Нет stvor-stack-publish.sh в корне (он входит в шаблон): верните файл или скачайте его в портале — стек → «Публикация» → «Скачать скрипт»" >&2; exit 2; }'
     - sh ./stvor-stack-publish.sh --self-test
   script:
     - |

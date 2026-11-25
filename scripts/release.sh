@@ -16,7 +16,8 @@
 #   STVOR_STACK_KEY    ключ стека sck_… (images, publish); только переменной окружения, не аргументом
 #   RELEASE_COUNTER    release_counter (render): целое ≥ 1, общий для всех вариантов версии и растущий от версии
 #                      к версии; STVOR_COUNTER_OFFSET (необязательно) прибавляется к нему
-#   CREATED_AT         created_at (render), UTC 2026-11-22T10:00:00Z; по умолчанию — время коммита HEAD
+#   CREATED_AT         created_at (render), UTC 2026-11-22T10:00:00Z (ISO 8601 со смещением приводится к UTC);
+#                      по умолчанию — время коммита HEAD
 #   SOURCE_REPO        https-адрес репозитория (render и метки образов); SOURCE_COMMIT — по умолчанию HEAD;
 #                      SOURCE_PIPELINE — адрес pipeline или пусто (null)
 #   PLATFORMS          linux/amd64,linux/arm64 (по умолчанию); вариант релиза = архитектура
@@ -236,8 +237,8 @@ cmd_publish() {
   need_stack
   need_url
   need_key
-  [ -f "$PUBLISH_SCRIPT" ] || die "нет stvor-stack-publish.sh в корне репозитория — скачайте его в портале: стек →" \
-    "вкладка «Публикация» → «Скачать скрипт», и закоммитьте"
+  [ -f "$PUBLISH_SCRIPT" ] || die "нет stvor-stack-publish.sh в корне репозитория (он входит в шаблон) — верните файл" \
+    "или скачайте его в портале: стек → вкладка «Публикация» → «Скачать скрипт»"
   for _arch in $(arches); do
     [ -d "$DIST/$_arch" ] || die "нет $DIST/$_arch — сначала scripts/release.sh render"
     say "публикация варианта $_arch"

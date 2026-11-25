@@ -7,6 +7,7 @@
 #   vars.STVOR_STACK      слаг стека
 #   secrets.STVOR_STACK_KEY  ключ CI стека sck_… (скрипт читает его только из переменной окружения STVOR_STACK_KEY)
 #   vars.STVOR_COUNTER_OFFSET  необязательно: прибавка к номеру запуска в release_counter
+# created_at релиза — время коммита тега (умолчание scripts/release.sh render).
 name: release
 
 on:
@@ -48,7 +49,7 @@ jobs:
       - name: Скрипт публикации на месте
         run: |
           test -f stvor-stack-publish.sh || {
-            echo "::error::Нет stvor-stack-publish.sh: портал → стек → «Публикация» → «Скачать скрипт», закоммитьте в корень"
+            echo "::error::Нет stvor-stack-publish.sh в корне (он входит в шаблон): верните файл или скачайте его в портале — стек → «Публикация» → «Скачать скрипт»"
             exit 2
           }
           sh ./stvor-stack-publish.sh --self-test
