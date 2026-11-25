@@ -1,0 +1,11 @@
+# Результаты scripts/release.sh: каталоги релиза, индексы, логи push, локальный запуск
+dist/
+# Учётка реестра задания GitLab
+.docker-release/
+# Окружение и ключи — никогда в git
+.env
+.env.*
+*.key
+__pycache__/
+*.pyc
+node_modules/
