@@ -1,0 +1,53 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index aa99545..813b930 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,15 @@
+ Раздел текущей версии портал показывает на карточке релиза («Что изменилось»). Раздел `## <версия>` обязателен:
+ без него `scripts/release.sh render` не соберёт релиз.
+ 
++## 1.1.0
++
++- Компоненты: api 1.1.0, web 1.1.0; баннер показывает новую версию.
++- Новый параметр `DEMO_GREETING` (приветствие на странице), умолчание `Hello, robot` — назначение без значения
++  его получит.
++- `DEMO_COLOR`: умолчание сменилось с `blue` на `green`. Значение прежнего назначения при обновлении проверьте
++  в мастере — для показа выберите `green`.
++- Данные: тот же том `demo-data`, счётчик запусков продолжается; миграций нет.
++
+ ## 1.0.0
+ 
+ - Компоненты: api 1.0.0 (Python, стандартная библиотека), web 1.0.0 (Node.js без зависимостей).
+diff --git a/release/compose.release.yaml b/release/compose.release.yaml
+index e843010..c7fd814 100644
+--- a/release/compose.release.yaml
++++ b/release/compose.release.yaml
+@@ -12,7 +12,8 @@ services:
+     restart: unless-stopped
+     environment:
+       DEMO_ROBOT_LABEL: ${DEMO_ROBOT_LABEL:?}
+-      DEMO_COLOR: ${DEMO_COLOR:-blue}
++      DEMO_COLOR: ${DEMO_COLOR:-green}
++      DEMO_GREETING: "${DEMO_GREETING:-Hello, robot}"
+     secrets: [api_token]
+     volumes:
+       - demo-data:/data
+diff --git a/release/parameters.yaml b/release/parameters.yaml
+index 55f3b2c..f6d15f9 100644
+--- a/release/parameters.yaml
++++ b/release/parameters.yaml
+@@ -14,7 +14,13 @@ parameters:
+     description: Цвет полосы над баннером версии.
+     type: enum
+     values: [blue, green, orange, purple]
+-    default: blue
++    default: green
++    scope: release
++  - name: DEMO_GREETING
++    title: Приветствие на странице
++    description: Новый в 1.1.0; если не задать, будет умолчание.
++    type: string
++    default: Hello, robot
+     scope: release
+ secrets:
+   - name: api_token

@@ -1,0 +1,32 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 813b930..58a8d04 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,13 @@
+ Раздел текущей версии портал показывает на карточке релиза («Что изменилось»). Раздел `## <версия>` обязателен:
+ без него `scripts/release.sh render` не соберёт релиз.
+ 
++## 1.2.0
++
++- Демонстрация автоотката: healthcheck web опрашивает порт 8081 вместо 8080, сервис не станет healthy.
++- По окончании окна проверки здоровья (120 с) агент вернёт 1.1.0 с её параметрами и секретами; Stvor покажет
++  «Откатился» с причиной `health_timeout`. Данные в томе `demo-data` сохраняются.
++- Не назначайте этот релиз рабочим роботам; исправление — 1.2.1 (`git revert` этого изменения).
++
+ ## 1.1.0
+ 
+ - Компоненты: api 1.1.0, web 1.1.0; баннер показывает новую версию.
+diff --git a/release/compose.release.yaml b/release/compose.release.yaml
+index c7fd814..ed726e7 100644
+--- a/release/compose.release.yaml
++++ b/release/compose.release.yaml
+@@ -38,7 +38,8 @@ services:
+     ports:
+       - "127.0.0.1:18080:8080"
+     healthcheck:
+-      test: ["CMD", "node", "/app/server.js", "--healthcheck"]
++      # Демо 1.2.0: healthcheck опрашивает не тот порт — web не станет healthy, агент откатит релиз.
++      test: ["CMD", "node", "/app/server.js", "--healthcheck", "--port", "8081"]
+       interval: 5s
+       timeout: 3s
+       retries: 3
