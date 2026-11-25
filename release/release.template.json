@@ -1,0 +1,25 @@
+{
+  "schema": 2,
+  "stack": "__STACK__",
+  "variant": "__VARIANT__",
+  "version": "__VERSION__",
+  "release_counter": "__COUNTER__",
+  "created_at": "__CREATED_AT__",
+  "source": {"repo": "__REPO__", "commit": "__COMMIT__", "pipeline": "__PIPELINE__"},
+  "components": [
+    {"name": "api", "repo": "__REPO__", "commit": "__COMMIT__", "version": "__VERSION__",
+     "image": "stacks/__STACK__/api:__VERSION__@__API_DIGEST__"},
+    {"name": "web", "repo": "__REPO__", "commit": "__COMMIT__", "version": "__VERSION__",
+     "image": "stacks/__STACK__/web:__VERSION__@__WEB_DIGEST__"}
+  ],
+  "images": [
+    "stacks/__STACK__/api:__VERSION__@__API_DIGEST__",
+    "stacks/__STACK__/web:__VERSION__@__WEB_DIGEST__"
+  ],
+  "compose": {"file": "compose.yaml", "digest": "__COMPOSE_DIGEST__"},
+  "parameters": {"file": "parameters.yaml", "digest": "__PARAMETERS_DIGEST__"},
+  "compat": {"arch": "__ARCH__", "l4t": null, "os": null, "min_agent": "5.12.0"},
+  "data": {"schema_version": 1, "migrations": [], "requires_from": null, "rollback_floor": null},
+  "flags": {"security": false, "lte_allowed": false},
+  "health": {"window_seconds": 120}
+}

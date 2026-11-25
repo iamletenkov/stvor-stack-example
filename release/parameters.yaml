@@ -1,0 +1,23 @@
+# Описание параметров и секретов релиза; значения задаются при назначении роботам.
+# Имя параметра — имя env; префиксы STACK_, COMPOSE_, DOCKER_ запрещены. Секреты — только файлами.
+schema: 1
+parameters:
+  - name: DEMO_ROBOT_LABEL
+    title: Имя робота на странице
+    description: По умолчанию — имя робота в Stvor.
+    type: string
+    scope: robot
+    required: true
+    autofill: robot.name
+  - name: DEMO_COLOR
+    title: Цвет страницы
+    description: Цвет полосы над баннером версии.
+    type: enum
+    values: [blue, green, orange, purple]
+    default: blue
+    scope: release
+secrets:
+  - name: api_token
+    title: Токен api (страница показывает только, задан ли он)
+    scope: robot
+    required: true

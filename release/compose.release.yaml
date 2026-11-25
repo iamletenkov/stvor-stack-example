@@ -1,0 +1,55 @@
+# Шаблон compose.yaml релиза. Маркеры вида __ИМЯ__ в ссылках на образы (слаг, версия, digest манифеста платформы
+# варианта из индекса тега) заменяет scripts/release.sh render. STACK_REGISTRY и STACK_SECRETS_DIR подставляет
+# агент на роботе; DEMO_* — параметры назначения из parameters.yaml.
+# Портал ищет переменные во всём тексте, включая комментарии: знак доллара здесь — только у объявленных имён.
+#
+# Файл плоский: без build, include, extends, env_file, name и bind-mount исходников. Образы — только по digest.
+services:
+  api:
+    image: ${STACK_REGISTRY:?}/stacks/__STACK__/api:__VERSION__@__API_DIGEST__
+    pull_policy: never
+    user: "10001:10001"
+    restart: unless-stopped
+    environment:
+      DEMO_ROBOT_LABEL: ${DEMO_ROBOT_LABEL:?}
+      DEMO_COLOR: ${DEMO_COLOR:-blue}
+    secrets: [api_token]
+    volumes:
+      - demo-data:/data
+    healthcheck:
+      test: ["CMD", "python3", "/app/server.py", "--healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: {max-size: "1m", max-file: "2"}
+
+  web:
+    image: ${STACK_REGISTRY:?}/stacks/__STACK__/web:__VERSION__@__WEB_DIGEST__
+    pull_policy: never
+    user: "10001:10001"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:8080"
+    healthcheck:
+      test: ["CMD", "node", "/app/server.js", "--healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: {max-size: "1m", max-file: "2"}
+
+# Имя тома не меняйте между версиями: данные переживают обновление и откат.
+volumes:
+  demo-data: {}
+
+secrets:
+  api_token:
+    file: ${STACK_SECRETS_DIR:?}/api_token
