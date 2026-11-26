@@ -224,8 +224,10 @@ version  component  platform     digest                source_commit
 ```
 
 `component` — `api`, `web`, `release`; `digest` — манифест платформы из индекса тега; образ —
-`ghcr.io/iamletenkov/stvor-stack-example/<component>@<digest>`. Строки — для linux/amd64 (девять строк); arm64 есть в
-том же индексе, строки для него даёт `LOCK_PLATFORMS=linux/amd64,linux/arm64 scripts/demo-images.sh lock`.
+`ghcr.io/iamletenkov/stvor-stack-example/<component>@<digest>`. Строки — на каждую платформу из `PLATFORMS`
+(по умолчанию linux/amd64 и linux/arm64, восемнадцать строк): робот arm64 (Jetson) берёт свою строку из того же пина.
+Только одну платформу даёт `LOCK_PLATFORMS=linux/amd64 scripts/demo-images.sh lock`. В релизе стека — digest
+манифеста платформы варианта, а не индекса: портал проверяет архитектуру образа по `compat.arch`.
 
 Pull request с правкой сборки (`demo-images.yml`, `scripts/demo-images.sh`, `scripts/release.sh`, `release/`, `demo/`,
 `api/`, `web/`) проходит те же шаги

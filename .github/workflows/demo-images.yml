@@ -81,7 +81,8 @@ jobs:
         run: |
           mkdir -p dist
           sh scripts/demo-images.sh lock >dist/demo-images.lock
-          test "$(wc -l <dist/demo-images.lock)" -eq 9
+          # три версии × api, web, release × linux/amd64 и linux/arm64
+          test "$(wc -l <dist/demo-images.lock)" -eq 18
           {
             echo "### Образы примера: таблица lock"
             echo
