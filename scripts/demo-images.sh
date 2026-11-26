@@ -14,7 +14,7 @@
 # Окружение:
 #   IMAGE_PREFIX   реестр и путь, по умолчанию ghcr.io/iamletenkov/stvor-stack-example → …/{api,web,release}
 #   PLATFORMS      linux/amd64,linux/arm64 (по умолчанию) — платформы сборки и проверки индекса в lock
-#   LOCK_PLATFORMS linux/amd64 (по умолчанию) — платформы строк таблицы lock
+#   LOCK_PLATFORMS платформы строк таблицы lock, по умолчанию = PLATFORMS (по строке на каждую платформу)
 #   SOURCE_REPO    https-адрес репозитория для меток образа, по умолчанию https://github.com/<путь IMAGE_PREFIX>
 #
 # Требуются: git, patch, jq; для build и lock — docker с buildx (builder с драйвером docker-container для
@@ -27,7 +27,7 @@ VERSIONS="1.0.0 1.1.0 1.2.0"
 COMPONENTS="api web release"
 IMAGE_PREFIX=${IMAGE_PREFIX:-ghcr.io/iamletenkov/stvor-stack-example}
 PLATFORMS=${PLATFORMS:-linux/amd64,linux/arm64}
-LOCK_PLATFORMS=${LOCK_PLATFORMS:-linux/amd64}
+LOCK_PLATFORMS=${LOCK_PLATFORMS:-$PLATFORMS}
 
 NL='
 '
@@ -345,6 +345,11 @@ self_test() {
   st_eq "строка lock" "$_row" "1.0.0${TAB}api${TAB}linux/amd64${TAB}$_d1${TAB}$_c"
   _rows=$(st_index "$_d1" "$_d2" | PLATFORMS=linux/amd64,linux/arm64 LOCK_PLATFORMS=linux/amd64,linux/arm64 lock_rows 1.2.0 release "$_c" | wc -l)
   st_eq "строки lock на две платформы" "$_rows" 2
+  # По умолчанию lock — все собранные платформы: робот arm64 (Jetson) берёт свою строку из того же пина.
+  _def=$(st_index "$_d1" "$_d2" | env -u PLATFORMS -u LOCK_PLATFORMS sh "$0" --lock-rows 1.1.0 web "$_c" | cut -f3 | tr '\n' ' ')
+  st_eq "строки lock по умолчанию — amd64 и arm64" "$_def" "linux/amd64 linux/arm64 "
+  _one=$(st_index "$_d1" "$_d2" | env -u LOCK_PLATFORMS PLATFORMS=linux/amd64 sh "$0" --lock-rows 1.1.0 web "$_c" | cut -f3)
+  st_eq "строки lock по умолчанию — платформы сборки" "$_one" "linux/amd64"
   if printf '%s\n' "$_row" | grep -Eq "^[0-9.]+${TAB}[a-z]+${TAB}linux/[a-z0-9]+${TAB}sha256:[0-9a-f]{64}${TAB}[0-9a-f]{40}\$"; then
     st_ok "формат строки lock"
   else
